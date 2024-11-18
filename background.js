@@ -1,42 +1,88 @@
-// Lista padrão de domínios de rastreamento conhecidos
-const defaultBlockList = [
-    "example-tracker.com",
-    "ads.tracker.net",
-    "analytics.tracker.org"
-  ];
-  
-  // Recupera ou inicializa a lista de bloqueio personalizada
-  let customBlockList = [];
-  browser.storage.local.get("customBlockList", (data) => {
+// Default block list (EasyList + EasyPrivacy, etc)
+const defaultBlockList = [];
+
+// Retrieve or initialize the custom blocklist and blocked trackers count
+let customBlockList = [];
+let blockedTrackers = 0;
+
+browser.storage.local
+  .get(["customBlockList", "blockedTrackers", "isBlockingEnabled"])
+  .then((data) => {
     if (data.customBlockList) {
       customBlockList = data.customBlockList;
     }
+    if (typeof data.blockedTrackers === "number") {
+      blockedTrackers = data.blockedTrackers;
+    } else {
+      // Initialize blockedTrackers in storage
+      browser.storage.local.set({ blockedTrackers });
+    }
+    if (typeof data.isBlockingEnabled === "undefined") {
+      // Set default blocking state to true
+      browser.storage.local.set({ isBlockingEnabled: true });
+    }
   });
-  
-  // Função para atualizar a lista de bloqueio
-  function updateCustomBlockList(newList) {
-    customBlockList = newList;
-    browser.storage.local.set({ customBlockList: customBlockList });
+
+// Listen for changes in storage to update customBlockList
+browser.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local") {
+    if (changes.customBlockList) {
+      customBlockList = changes.customBlockList.newValue;
+      console.log("customBlockList updated:", customBlockList);
+    }
+    if (changes.isBlockingEnabled) {
+      isBlockingEnabled = changes.isBlockingEnabled.newValue;
+      console.log("Blocking enabled:", isBlockingEnabled);
+    }
   }
-  
-  // Intercepta e bloqueia requisições para domínios de rastreamento
-  browser.webRequest.onBeforeRequest.addListener(
-    (details) => {
-      const url = new URL(details.url);
-      if (defaultBlockList.includes(url.hostname) || customBlockList.includes(url.hostname)) {
-        console.log(`Bloqueado: ${url.hostname}`);
-        return { cancel: true };
-      }
-      return { cancel: false };
-    },
-    { urls: ["<all_urls>"] },
-    ["blocking"]
-  );
-  
-  // Envia relatórios para a interface popup
-  let blockedTrackers = 0;
-  function reportBlockedTracker(domain) {
-    blockedTrackers++;
-    browser.runtime.sendMessage({ type: "trackerBlocked", domain });
+});
+
+// Initialize blocking state
+let isBlockingEnabled = true;
+
+// Listen for messages from the popup
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === "toggleBlocking") {
+    isBlockingEnabled = message.isBlockingEnabled;
+    console.log("Blocking state toggled:", isBlockingEnabled);
   }
-  
+});
+
+// Intercept and block requests to tracking domains
+browser.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    if (!isBlockingEnabled) {
+      return {};
+    }
+
+    const url = new URL(details.url);
+    const hostname = url.hostname;
+
+    const combinedBlockList = defaultBlockList.concat(customBlockList);
+
+    const isBlocked = combinedBlockList.some((blockedDomain) => {
+      return (
+        hostname === blockedDomain || hostname.endsWith(`.${blockedDomain}`)
+      );
+    });
+
+    if (isBlocked) {
+      console.log(`Blocked: ${hostname}`);
+      reportBlockedTracker(hostname); // Report to the popup
+      return { cancel: true };
+    }
+    return {};
+  },
+  { urls: ["<all_urls>"] },
+  ["blocking"],
+);
+
+// Send reports to the popup interface and update storage
+function reportBlockedTracker(domain) {
+  blockedTrackers++;
+  // Update the count in storage
+  browser.storage.local.set({ blockedTrackers });
+
+  // Send a message to update the count if the popup is open
+  browser.runtime.sendMessage({ type: "updateBlockedCount", blockedTrackers });
+}

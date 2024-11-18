@@ -1,30 +1,39 @@
 body {
     font-family: Arial, sans-serif;
     padding: 10px;
-  }
-  
-  h1 {
+}
+
+h1 {
     font-size: 1.2em;
-  }
-  
-  button {
+}
+
+button {
     margin-top: 10px;
     padding: 5px 10px;
-  }
-  
-  #custom-list {
+}
+
+#toggle-blocking.active {
+    background-color: lightgreen;
+    color: black;
+}
+
+#toggle-blocking.inactive {
+    background-color: red;
+    color: white;
+}
+
+#custom-list {
     list-style-type: none;
     padding: 0;
-  }
-  
-  #custom-list li {
+}
+
+#custom-list li {
     display: flex;
     justify-content: space-between;
     padding: 5px 0;
-  }
-  
-  input[type="text"] {
+}
+
+input[type="text"] {
     width: calc(100% - 120px);
     padding: 5px;
-  }
-  
+}
