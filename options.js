@@ -1,5 +1,12 @@
+// List of available filter lists and their display names
+const availableFilterLists = {
+  easylist: "EasyList",
+};
+
+// Function to update the UI
 function updateUI() {
-  browser.storage.local.get("customBlockList", (data) => {
+  // Update custom blocklist UI
+  browser.storage.local.get(["customBlockList", "activeLists"]).then((data) => {
     const list = data.customBlockList || [];
     const customList = document.getElementById("custom-list");
     customList.innerHTML = "";
@@ -16,21 +23,49 @@ function updateUI() {
       li.appendChild(removeButton);
       customList.appendChild(li);
     });
+
+    // Update filter lists UI
+    const activeLists = data.activeLists || {};
+    const filterListsContainer = document.getElementById("filter-lists");
+    filterListsContainer.innerHTML = "";
+
+    for (const listKey in availableFilterLists) {
+      const listName = availableFilterLists[listKey];
+      const li = document.createElement("li");
+
+      const label = document.createElement("label");
+      label.textContent = listName;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = activeLists[listKey] || false;
+      checkbox.addEventListener("change", () => {
+        activeLists[listKey] = checkbox.checked;
+        browser.storage.local.set({ activeLists });
+      });
+
+      label.prepend(checkbox);
+      li.appendChild(label);
+      filterListsContainer.appendChild(li);
+    }
   });
 }
 
+// Handle adding custom domains
 document.getElementById("add-domain").addEventListener("click", () => {
   const input = document.getElementById("domain-input");
   const domain = input.value.trim();
   if (domain) {
-    browser.storage.local.get("customBlockList", (data) => {
+    browser.storage.local.get("customBlockList").then((data) => {
       const list = data.customBlockList || [];
       list.push(domain);
-      browser.storage.local.set({ customBlockList: list });
-      updateUI();
+      browser.storage.local.set({ customBlockList: list }).then(() => {
+        updateUI();
+      });
     });
     input.value = "";
   }
 });
 
+// Initial UI update
 updateUI();

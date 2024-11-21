@@ -1,108 +1,108 @@
 function shouldBlock(uri, filterList) {
-    let blocked = false;
-    let allow = false;
+  let blocked = false;
+  let allow = false;
 
-    for (let filter of filterList) {
-        filter = filter.trim();
-        if (!filter) {
-            continue; // Skip empty lines
-        }
-
-        let filterData = filterToRegExp(filter);
-        if (!filterData) {
-            continue; // Invalid filter, skip
-        }
-
-        if (filterData.regex.test(uri)) {
-            if (filterData.isException) {
-                allow = true;
-            } else {
-                blocked = true;
-            }
-        }
+  for (let filter of filterList) {
+    filter = filter.trim();
+    if (!filter) {
+      continue; // Skip empty lines
     }
 
-    if (allow) {
-        return true; // Allow
-    } else if (blocked) {
-        return false; // Block
-    } else {
-        return true; // Allow by default
+    let filterData = filterToRegExp(filter);
+    if (!filterData) {
+      continue; // Invalid filter, skip
     }
+
+    if (filterData.regex.test(uri)) {
+      if (filterData.isException) {
+        allow = true;
+      } else {
+        blocked = true;
+      }
+    }
+  }
+
+  if (allow) {
+    return true; // Allow
+  } else if (blocked) {
+    return false; // Block
+  } else {
+    return true; // Allow by default
+  }
 }
 
 function filterToRegExp(filter) {
-    let isException = false;
-    if (filter.startsWith('@@')) {
-        isException = true;
-        filter = filter.substring(2);
+  let isException = false;
+  if (filter.startsWith("@@")) {
+    isException = true;
+    filter = filter.substring(2);
+  }
+
+  // Remove options (we are ignoring them in this implementation)
+  let optionsIndex = filter.indexOf("$");
+  if (optionsIndex !== -1) {
+    filter = filter.substring(0, optionsIndex);
+  }
+
+  if (!filter) {
+    return null;
+  }
+
+  if (filter.startsWith("/") && filter.endsWith("/") && filter.length > 1) {
+    // Regular expression filter
+    let regexPattern = filter.substring(1, filter.length - 1);
+    try {
+      let regex = new RegExp(regexPattern);
+      return { regex: regex, isException: isException };
+    } catch (e) {
+      // Invalid regex
+      return null;
+    }
+  } else {
+    let regexPattern = "";
+    let index = 0;
+
+    if (filter.startsWith("||")) {
+      // Matches beginning of domain name
+      regexPattern += "^(?:[^:/?#]+:)?(?://)?(?:[^/?#]*\\.)?";
+      index = 2;
+    } else if (filter.startsWith("|")) {
+      // Matches beginning of the URL
+      regexPattern += "^";
+      index = 1;
     }
 
-    // Remove options (we are ignoring them in this implementation)
-    let optionsIndex = filter.indexOf('$');
-    if (optionsIndex !== -1) {
-        filter = filter.substring(0, optionsIndex);
+    let endWithAnchor = false;
+    if (filter.endsWith("|")) {
+      endWithAnchor = true;
+      filter = filter.substring(0, filter.length - 1);
     }
 
-    if (!filter) {
-        return null;
+    let pattern = filter.substring(index);
+    pattern = escapeRegExp(pattern);
+
+    // Replace Adblock Plus wildcards and special characters
+    pattern = pattern.replace(/\\\*/g, ".*");
+    pattern = pattern.replace(/\\\^/g, "[^a-zA-Z0-9_\\-\\.%]");
+
+    regexPattern += pattern;
+
+    if (endWithAnchor) {
+      regexPattern += "$";
     }
 
-    if (filter.startsWith('/') && filter.endsWith('/') && filter.length > 1) {
-        // Regular expression filter
-        let regexPattern = filter.substring(1, filter.length - 1);
-        try {
-            let regex = new RegExp(regexPattern);
-            return { regex: regex, isException: isException };
-        } catch (e) {
-            // Invalid regex
-            return null;
-        }
-    } else {
-        let regexPattern = '';
-        let index = 0;
-
-        if (filter.startsWith('||')) {
-            // Matches beginning of domain name
-            regexPattern += '^(?:[^:/?#]+:)?(?://)?(?:[^/?#]*\\.)?';
-            index = 2;
-        } else if (filter.startsWith('|')) {
-            // Matches beginning of the URL
-            regexPattern += '^';
-            index = 1;
-        }
-
-        let endWithAnchor = false;
-        if (filter.endsWith('|')) {
-            endWithAnchor = true;
-            filter = filter.substring(0, filter.length - 1);
-        }
-
-        let pattern = filter.substring(index);
-        pattern = escapeRegExp(pattern);
-
-        // Replace Adblock Plus wildcards and special characters
-        pattern = pattern.replace(/\\\*/g, '.*');
-        pattern = pattern.replace(/\\\^/g, '[^a-zA-Z0-9_\\-\\.%]');
-
-        regexPattern += pattern;
-
-        if (endWithAnchor) {
-            regexPattern += '$';
-        }
-
-        try {
-            let regex = new RegExp(regexPattern);
-            return { regex: regex, isException: isException };
-        } catch (e) {
-            // Invalid regex
-            return null;
-        }
+    try {
+      let regex = new RegExp(regexPattern);
+      return { regex: regex, isException: isException };
+    } catch (e) {
+      // Invalid regex
+      return null;
     }
+  }
 }
 
 function escapeRegExp(s) {
-    return s.replace(/([.*+?^${}()|\[\]\\])/g, '\\$1');
+  return s.replace(/([.*+?^${}()|\[\]\\])/g, "\\$1");
 }
 
 /**
@@ -111,32 +111,32 @@ function escapeRegExp(s) {
  * @returns {string[]} - An array of filter strings.
  */
 function parseFilterList(filterString) {
-    const lines = filterString.split(/\r?\n/);
-    const filters = [];
+  const lines = filterString.split(/\r?\n/);
+  const filters = [];
 
-    for (let line of lines) {
-        line = line.trim();
-        if (!line || line.startsWith('!') || line.startsWith('[')) {
-            // Skip empty lines and comments (lines starting with ! or [)
-            continue;
-        }
-        filters.push(line);
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith("!") || line.startsWith("[")) {
+      // Skip empty lines and comments (lines starting with ! or [)
+      continue;
     }
+    filters.push(line);
+  }
 
-    return filters;
+  return filters;
 }
 
-// Example usage:
+// // Example usage:
 
-const adblockListString = `
-! Comment line
-||example.com^
-||ads.example.com^
-@@||example.com/allow$script
-/banner\\.jpg$
-`;
+// const adblockListString = `
+// ! Comment line
+// ||example.com^
+// ||ads.example.com^
+// @@||example.com/allow$script
+// /banner\\.jpg$
+// `;
 
-const uri = 'http://example.com/ads/banner.jpg';
-const filterList = parseFilterList(adblockListString);
+// const uri = 'http://example.com/ads/banner.jpg';
+// const filterList = parseFilterList(adblockListString);
 
-console.log(shouldBlock(uri, filterList)); // Output: false (blocked)
+// console.log(shouldBlock(uri, filterList)); // Output: false (blocked)
