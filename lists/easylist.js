@@ -55066,7 +55066,6 @@ utne.com###URTK_Bottom_728x90
 utne.com###URTK_Middle_300x250
 utne.com###URTK_Right_300x600
 scrabble-solver.com###Upper
-breakingnews.ie###\30 _pweumum7
 turbobit.net###__bgd_link
 news-daily.com,outlookindia.com,stripes.com###_snup-rtdx-ldgr1
 ytmp3.cc###a-320-50
@@ -64244,4 +64243,4 @@ redtube.com,tube8.com,tube8.es,tube8.fr,xvideos.com,youjizz.com,youporn.com,youp
 @@||rule34hentai.net^$generichide
 @@||urlgalleries.net^$generichide
 @@||xfreehd.com^$generichide
-! *** easylist:easylist_adult/adult_allowlist_popup.txt ***`
+! *** easylist:easylist_adult/adult_allowlist_popup.txt ***`;

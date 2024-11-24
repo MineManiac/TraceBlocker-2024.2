@@ -5,7 +5,7 @@
   "description": "Plugin para bloquear rastreadores e proteger a privacidade.",
   "permissions": ["webRequest", "webRequestBlocking", "<all_urls>", "storage"],
   "background": {
-    "scripts": ["background.js", "basic-abp-parser.js"]
+    "scripts": ["lists/easylist.js", "basic-abp-parser.js", "background.js"]
   },
   "browser_action": {
     "default_popup": "popup.html",

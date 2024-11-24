@@ -1,10 +1,12 @@
 
+function updateEasyListToggle(isEnabled) {
+  const toggle = document.getElementById("toggle-easylist");
+  toggle.checked = isEnabled;
+}
 
-// Function to update the UI
-function updateUI() {
-  // Update custom blocklist UI
-  browser.storage.local.get(["customList"]).then((data) => {
-    const list = data.customBlockList || [];
+function updateCustomBlockListUI() {
+  browser.storage.local.get("customList").then((data) => {
+    const list = data.customList || [];
     const customList = document.getElementById("custom-list");
     customList.innerHTML = "";
     list.forEach((domain) => {
@@ -15,54 +17,43 @@ function updateUI() {
       removeButton.addEventListener("click", () => {
         const newList = list.filter((item) => item !== domain);
         browser.storage.local.set({ customList: newList });
-        updateUI();
+        updateCustomBlockListUI();
       });
       li.appendChild(removeButton);
       customList.appendChild(li);
     });
-
-    // Update filter lists UI
-    const activeLists = data.activeLists || {};
-    const filterListsContainer = document.getElementById("filter-lists");
-    filterListsContainer.innerHTML = "";
-
-    for (const listKey in availableFilterLists) {
-      const listName = availableFilterLists[listKey];
-      const li = document.createElement("li");
-
-      const label = document.createElement("label");
-      label.textContent = listName;
-
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = activeLists[listKey] || false;
-      checkbox.addEventListener("change", () => {
-        activeLists[listKey] = checkbox.checked;
-        browser.storage.local.set({ activeLists });
-      });
-
-      label.prepend(checkbox);
-      li.appendChild(label);
-      filterListsContainer.appendChild(li);
-    }
   });
 }
+
+// Handle EasyList toggle change
+document.getElementById("toggle-easylist").addEventListener("change", (event) => {
+  const isEnabled = event.target.checked;
+  browser.storage.local.set({ isEzEnabled: isEnabled });
+});
+
 
 // Handle adding custom domains
 document.getElementById("add-domain").addEventListener("click", () => {
   const input = document.getElementById("domain-input");
   const domain = input.value.trim();
   if (domain) {
-    browser.storage.local.get("customBlockList").then((data) => {
-      const list = data.customBlockList || [];
+    browser.storage.local.get("customList").then((data) => {
+      const list = data.customList || [];
+      if (list.includes(domain)) {
+        return;
+      }
       list.push(domain);
-      browser.storage.local.set({ customBlockList: list }).then(() => {
-        updateUI();
+      browser.storage.local.set({ customList: list }).then(() => {
+        updateCustomBlockListUI();
       });
     });
     input.value = "";
   }
 });
 
-// Initial UI update
-updateUI();
+browser.storage.local.get("isEzEnabled").then((data) => {
+  const isEnabled = data.isEzEnabled !== false; // Default to true
+  updateEasyListToggle(isEnabled);
+});
+
+updateCustomBlockListUI();
