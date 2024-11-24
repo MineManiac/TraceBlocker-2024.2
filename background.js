@@ -37,6 +37,7 @@ browser.storage.onChanged.addListener((changes, areaName) => {
 browser.runtime.onMessage.addListener((message) => {
   if (message.type === "toggleBlocking") {
     isBlockingEnabled = message.isBlockingEnabled;
+    browser.storage.local.set({ isBlockingEnabled });
   } else if (message.type === "getRecentBlockedTrackersInfo") {
     sendResponse({ type: 'sendRecentBlockedTrackersInfo', recentBlockedTrackers, blockedTrackers });
   }
@@ -49,15 +50,14 @@ browser.runtime.onMessage.addListener((message) => {
 // Intercept and block requests
 browser.webRequest.onBeforeRequest.addListener(
   (details) => {
-    console.log(details.url);
-    console.log(isBlockingEnabled);
+
     if (!isBlockingEnabled) {
       return {};
     }
-
     const shoulBlockEz = isEzEnabled && shouldBlock(parsedEz, details.url);
-    const shouldBlockCustom = customList.some((domain) => details.url.includes(domain));
+    const shouldBlockCustom = shouldBlock(customList, details.url);
     if (shoulBlockEz || shouldBlockCustom) {
+      console.log("Blocking", details.url);
       reportBlockedTracker(details.url);
       return { cancel: true };
     }
