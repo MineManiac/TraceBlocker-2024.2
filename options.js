@@ -1,12 +1,9 @@
-// List of available filter lists and their display names
-const availableFilterLists = {
-  easylist: "EasyList",
-};
+
 
 // Function to update the UI
 function updateUI() {
   // Update custom blocklist UI
-  browser.storage.local.get(["customBlockList", "activeLists"]).then((data) => {
+  browser.storage.local.get(["customList"]).then((data) => {
     const list = data.customBlockList || [];
     const customList = document.getElementById("custom-list");
     customList.innerHTML = "";
@@ -17,7 +14,7 @@ function updateUI() {
       removeButton.textContent = "Remove";
       removeButton.addEventListener("click", () => {
         const newList = list.filter((item) => item !== domain);
-        browser.storage.local.set({ customBlockList: newList });
+        browser.storage.local.set({ customList: newList });
         updateUI();
       });
       li.appendChild(removeButton);

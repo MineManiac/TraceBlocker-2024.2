@@ -23,11 +23,11 @@ function shouldBlock(uri, filterList) {
   }
 
   if (allow) {
-    return true; // Allow
+    return false; // Allow
   } else if (blocked) {
-    return false; // Block
+    return true; // Block
   } else {
-    return true; // Allow by default
+    return false; // Allow by default
   }
 }
 

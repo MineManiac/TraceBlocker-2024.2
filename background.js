@@ -1,50 +1,29 @@
-// Initialize blocking lists
-let customBlockList = [];
-let activeFilterLists = {};
+const parsedEz = parseFilterList(easylist);
+let customList = []
+let isActiveEz = false;
 
-// Count of blocked trackers
-let blockedTrackers = 0;
 
-// Enables or disables blocking
-let isBlockingEnabled = true;
+let recentBlockedTrackers = [];
+const MaxRecentBlockedTrackers = 30;
 
-// List of available filter lists and their file paths
-const availableFilterLists = {
-  easylist: "lists/easylist.txt",
-};
 
 // Retrieve settings from storage
-browser.storage.local
-  .get([
-    "customBlockList",
-    "blockedTrackers",
-    "isBlockingEnabled",
-    "activeLists",
-  ])
-  .then((data) => {
-    customBlockList = data.customBlockList || [];
-    blockedTrackers = data.blockedTrackers || 0;
-    isBlockingEnabled = data.isBlockingEnabled !== false; // Default to true
-    const storedActiveLists = data.activeLists || {};
+browser.storage.local.get("customList").then((data) => {
+  customList = data.customList || [];
+});
 
-    // Load active filter lists
-    loadActiveFilterLists(storedActiveLists);
-  });
+browser.storage.local.get("isActiveEz").then((data) => {
+  isActiveEz = data.isActiveEz || false;
+});
 
 // Listen for storage changes
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local") {
-    if (changes.customBlockList) {
-      customBlockList = changes.customBlockList.newValue;
-      console.log("customBlockList updated:", customBlockList);
+    if (changes.customList) {
+      customList = changes.customList.newValue;
     }
-    if (changes.isBlockingEnabled) {
-      isBlockingEnabled = changes.isBlockingEnabled.newValue;
-      console.log("Blocking enabled:", isBlockingEnabled);
-    }
-    if (changes.activeLists) {
-      // Reload active filter lists
-      loadActiveFilterLists(changes.activeLists.newValue);
+    if (changes.isActiveEz) {
+      isActiveEz = changes.isActiveEz.newValue;
     }
   }
 });
@@ -54,40 +33,13 @@ browser.runtime.onMessage.addListener((message) => {
   if (message.type === "toggleBlocking") {
     isBlockingEnabled = message.isBlockingEnabled;
     console.log("Blocking state toggled:", isBlockingEnabled);
+  } else if (message.type === "getRecentBlockedTrackers") {
+    sendResponse({ type: 'sendRecentBlockedTrackers', recentBlockedTrackers });
   }
+
 });
 
 // Function to load active filter lists
-function loadActiveFilterLists(storedActiveLists) {
-  activeFilterLists = {}; // Reset active filter lists
-
-  const promises = [];
-
-  for (const listName in availableFilterLists) {
-    if (storedActiveLists[listName]) {
-      const listPath = availableFilterLists[listName];
-      // Fetch the list file
-      const fetchPromise = fetch(browser.runtime.getURL(listPath))
-        .then((response) => response.text())
-        .then((text) => {
-          // Parse the filter list
-          const filters = parseFilterList(text);
-          activeFilterLists[listName] = filters;
-          console.log(`Loaded and parsed ${listName}`);
-        })
-        .catch((error) => {
-          console.error(`Error loading ${listName}:`, error);
-        });
-
-      promises.push(fetchPromise);
-    }
-  }
-
-  // Once all lists are loaded
-  Promise.all(promises).then(() => {
-    console.log("All active filter lists loaded");
-  });
-}
 
 // Intercept and block requests
 browser.webRequest.onBeforeRequest.addListener(
@@ -96,37 +48,12 @@ browser.webRequest.onBeforeRequest.addListener(
       return {};
     }
 
-    const url = details.url;
-
-    // First, check custom blocklist (simple domain matching)
-    const hostname = new URL(url).hostname;
-    const isCustomBlocked = customBlockList.some((blockedDomain) => {
-      return (
-        hostname === blockedDomain || hostname.endsWith(`.${blockedDomain}`)
-      );
-    });
-
-    if (isCustomBlocked) {
-      console.log(`Blocked by custom list: ${hostname}`);
-      reportBlockedTracker(hostname);
+   
+    const shoulBlockEz = isActiveEz && shouldBlock(parsedEz, details.url);
+    const shouldBlockCustom = customList.some((domain) => details.url.includes(domain));
+    if (shoulBlockEz || shouldBlockCustom) {
+      reportBlockedTracker(details.url);
       return { cancel: true };
-    }
-
-    // Next, check active filter lists using shouldBlock function
-    const allFilters = [];
-
-    for (const filters of Object.values(activeFilterLists)) {
-      allFilters.push(...filters);
-    }
-
-    if (allFilters.length > 0) {
-      const isBlocked = !shouldBlock(url, allFilters);
-
-      if (isBlocked) {
-        console.log(`Blocked by filter lists: ${url}`);
-        reportBlockedTracker(url);
-        return { cancel: true };
-      }
     }
 
     return {};
@@ -136,11 +63,17 @@ browser.webRequest.onBeforeRequest.addListener(
 );
 
 // Function to report blocked trackers
-function reportBlockedTracker(domain) {
+function reportBlockedTracker(url) {
   blockedTrackers++;
+  
+  recentBlockedTrackers.push(url);
+  if (recentBlockedTrackers.length > MaxRecentBlockedTrackers) {
+    recentBlockedTrackers.shift();
+  }
+
   // Update the count in storage
   browser.storage.local.set({ blockedTrackers });
 
   // Send a message to update the count if the popup is open
-  browser.runtime.sendMessage({ type: "updateBlockedCount", blockedTrackers });
+  browser.runtime.sendMessage({ type: "updateInfo", blockedTrackers, recentBlockedTrackers });
 }
