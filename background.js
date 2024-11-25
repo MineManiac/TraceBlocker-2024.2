@@ -54,8 +54,11 @@ browser.webRequest.onBeforeRequest.addListener(
     if (!isBlockingEnabled) {
       return {};
     }
-    const shoulBlockEz = isEzEnabled && shouldBlock(parsedEz, details.url);
-    const shouldBlockCustom = shouldBlock(customList, details.url);
+    
+    const url = new URL(details.url).hostname + new URL(details.url).pathname;
+
+    const shoulBlockEz = isEzEnabled && shouldBlock(url, parsedEz);
+    const shouldBlockCustom = shouldBlock(url, customList);
     if (shoulBlockEz || shouldBlockCustom) {
       console.log("Blocking", details.url);
       reportBlockedTracker(details.url);

@@ -1,34 +1,29 @@
 function shouldBlock(uri, filterList) {
-  let blocked = false;
-  let allow = false;
+  let matchedAction = null; // null: no match, true: block, false: allow
 
   for (let filter of filterList) {
+
     filter = filter.trim();
     if (!filter) {
       continue; // Skip empty lines
     }
 
     let filterData = filterToRegExp(filter);
+
     if (!filterData) {
       continue; // Invalid filter, skip
     }
 
     if (filterData.regex.test(uri)) {
-      if (filterData.isException) {
-        allow = true;
-      } else {
-        blocked = true;
-      }
+      matchedAction = filterData.isException ? false : true;
+      // Continue processing to allow later filters to override
     }
   }
 
-  if (allow) {
-    return false; // Allow
-  } else if (blocked) {
-    return true; // Block
-  } else {
+  if (matchedAction === null) {
     return false; // Allow by default
   }
+  return matchedAction;
 }
 
 function filterToRegExp(filter) {
@@ -125,18 +120,3 @@ function parseFilterList(filterString) {
 
   return filters;
 }
-
-// // Example usage:
-
-// const adblockListString = `
-// ! Comment line
-// ||example.com^
-// ||ads.example.com^
-// @@||example.com/allow$script
-// /banner\\.jpg$
-// `;
-
-// const uri = 'http://example.com/ads/banner.jpg';
-// const filterList = parseFilterList(adblockListString);
-
-// console.log(shouldBlock(uri, filterList)); // Output: false (blocked)
